@@ -1,1106 +1,787 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEXUS v3.0 | Advanced Bug Bounty Dork Engine</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <style>
-        :root {
-            --bg-primary: #0d0d15;
-            --bg-secondary: #16161f;
-            --bg-tertiary: #1e1e2e;
-            --bg-card: #1a1a27;
-            --accent-primary: #00d9ff;
-            --accent-secondary: #7b2ff7;
-            --accent-success: #00ff88;
-            --accent-danger: #ff4757;
-            --accent-warning: #ffb800;
-            --text-primary: #e8e8f0;
-            --text-secondary: #9999aa;
-            --text-muted: #666677;
-            --border-primary: #2a2a3f;
-            --border-accent: #3a3a55;
-            --shadow: rgba(0, 0, 0, 0.4);
-            --glow: rgba(0, 217, 255, 0.15);
-            --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Courier New', monospace;
-        }
-
-        * { 
-            margin: 0; 
-            padding: 0; 
-            box-sizing: border-box; 
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
-            background: linear-gradient(135deg, #0d0d15 0%, #1a0a20 100%);
-            color: var(--text-primary);
-            height: 100vh;
-            display: flex;
-            overflow: hidden;
-            position: relative;
-        }
-
-        body::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle, rgba(123, 47, 247, 0.08) 0%, transparent 70%);
-            pointer-events: none;
-            animation: pulse 8s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 0.3; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.1); }
-        }
-
-        /* Sidebar */
-        .sidebar {
-            width: 300px;
-            background: rgba(22, 22, 31, 0.95);
-            backdrop-filter: blur(10px);
-            border-right: 1px solid var(--border-primary);
-            display: flex;
-            flex-direction: column;
-            padding: 25px 20px;
-            z-index: 10;
-            overflow-y: auto;
-            box-shadow: 4px 0 20px var(--shadow);
-        }
-
-        .sidebar::-webkit-scrollbar { width: 6px; }
-        .sidebar::-webkit-scrollbar-track { background: transparent; }
-        .sidebar::-webkit-scrollbar-thumb { 
-            background: var(--border-accent); 
-            border-radius: 3px; 
-        }
-
-        .logo {
-            font-family: var(--font-mono);
-            font-size: 1.4rem;
-            color: var(--accent-primary);
-            margin-bottom: 10px;
-            font-weight: 800;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            text-shadow: 0 0 20px var(--glow);
-        }
-
-        .logo i { 
-            font-size: 1.6rem;
-            animation: rotate 10s linear infinite;
-        }
-
-        @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .logo-subtitle {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            font-family: var(--font-mono);
-            margin-bottom: 25px;
-            letter-spacing: 2px;
-        }
-
-        .section-label {
-            font-size: 0.65rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin: 20px 0 10px 5px;
-            font-weight: 600;
-        }
-
-        .nav-btn {
-            width: 100%;
-            text-align: left;
-            padding: 13px 15px;
-            background: transparent;
-            border: 1px solid transparent;
-            color: var(--text-secondary);
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            font-size: 0.9rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .nav-btn::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 3px;
-            background: var(--accent-primary);
-            transform: scaleY(0);
-            transition: transform 0.3s;
-        }
-
-        .nav-btn:hover { 
-            background: var(--bg-tertiary); 
-            color: var(--text-primary); 
-            border-color: var(--border-accent);
-            transform: translateX(5px);
-        }
-
-        .nav-btn.active { 
-            background: linear-gradient(135deg, rgba(0, 217, 255, 0.1) 0%, rgba(123, 47, 247, 0.1) 100%);
-            color: var(--accent-primary); 
-            border-color: var(--accent-primary);
-            box-shadow: 0 0 15px rgba(0, 217, 255, 0.2);
-        }
-
-        .nav-btn.active::before {
-            transform: scaleY(1);
-        }
-
-        .nav-btn-content {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .nav-btn i {
-            font-size: 0.9rem;
-            width: 20px;
-        }
-
-        .badge {
-            background: var(--bg-primary);
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 0.7rem;
-            font-family: var(--font-mono);
-            color: var(--accent-primary);
-            border: 1px solid var(--border-primary);
-        }
-
-        /* Main Content */
-        .main {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        /* Top Stats Bar */
-        .stats-bar {
-            background: rgba(22, 22, 31, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 15px 30px;
-            border-bottom: 1px solid var(--border-primary);
-            display: flex;
-            gap: 35px;
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            font-family: var(--font-mono);
-            flex-wrap: wrap;
-        }
-
-        .stat-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .stat-item i {
-            color: var(--accent-primary);
-        }
-
-        .stat-value {
-            color: var(--accent-primary);
-            font-weight: bold;
-        }
-
-        /* Header */
-        .header {
-            padding: 25px 30px;
-            background: rgba(22, 22, 31, 0.95);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid var(--border-primary);
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .input-group {
-            position: relative;
-            flex: 1;
-            min-width: 280px;
-        }
-
-        .input-group input {
-            width: 100%;
-            background: var(--bg-primary);
-            border: 1px solid var(--border-primary);
-            padding: 14px 18px;
-            padding-left: 85px;
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-family: var(--font-mono);
-            font-size: 1rem;
-            transition: all 0.3s;
-        }
-
-        .input-group input:focus {
-            outline: none;
-            border-color: var(--accent-primary);
-            box-shadow: 0 0 0 3px var(--glow);
-        }
-
-        .input-label {
-            position: absolute;
-            left: 18px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--accent-primary);
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            font-weight: 700;
-            letter-spacing: 1px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .engine-select {
-            background: var(--bg-primary);
-            border: 1px solid var(--border-primary);
-            color: var(--text-primary);
-            padding: 14px 18px;
-            border-radius: 8px;
-            cursor: pointer;
-            min-width: 160px;
-            font-family: var(--font-mono);
-            font-size: 0.9rem;
-            transition: all 0.3s;
-        }
-
-        .engine-select:hover {
-            border-color: var(--accent-primary);
-        }
-
-        .engine-select:focus {
-            outline: none;
-            border-color: var(--accent-primary);
-            box-shadow: 0 0 0 3px var(--glow);
-        }
-
-        /* Content Area */
-        .content {
-            flex: 1;
-            padding: 30px;
-            overflow-y: auto;
-        }
-
-        .content::-webkit-scrollbar { width: 10px; }
-        .content::-webkit-scrollbar-track { background: var(--bg-primary); }
-        .content::-webkit-scrollbar-thumb { 
-            background: var(--border-accent); 
-            border-radius: 5px; 
-        }
-        .content::-webkit-scrollbar-thumb:hover { 
-            background: var(--accent-primary); 
-        }
-
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-
-        .section-title h2 { 
-            font-weight: 600; 
-            font-size: 1.8rem;
-            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .section-title h2 i {
-            -webkit-text-fill-color: var(--accent-primary);
-        }
-
-        .section-subtitle { 
-            color: var(--text-secondary); 
-            font-size: 0.9rem; 
-            margin-top: 8px; 
-        }
-
-        .controls {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .delay-control {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            background: var(--bg-card);
-            padding: 10px 16px;
-            border-radius: 8px;
-            border: 1px solid var(--border-primary);
-        }
-
-        .delay-control i {
-            color: var(--accent-primary);
-        }
-
-        .delay-control input[type="range"] {
-            width: 100px;
-            accent-color: var(--accent-primary);
-        }
-
-        /* Grid */
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-            gap: 20px;
-        }
-
-        .dork-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-primary);
-            border-radius: 10px;
-            padding: 22px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .dork-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-            transform: scaleX(0);
-            transition: transform 0.3s;
-        }
-
-        .dork-card:hover {
-            transform: translateY(-4px);
-            border-color: var(--accent-primary);
-            box-shadow: 0 8px 30px rgba(0, 217, 255, 0.2);
-        }
-
-        .dork-card:hover::before {
-            transform: scaleX(1);
-        }
-
-        .dork-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 10px;
-        }
-
-        .dork-title {
-            font-weight: 600;
-            color: var(--text-primary);
-            font-size: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .dork-title i {
-            color: var(--accent-primary);
-            font-size: 0.9rem;
-        }
-
-        .dork-number {
-            color: var(--text-muted);
-            font-size: 0.75rem;
-            font-family: var(--font-mono);
-            background: var(--bg-primary);
-            padding: 4px 8px;
-            border-radius: 6px;
-            border: 1px solid var(--border-primary);
-        }
-
-        .dork-desc {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            margin-bottom: 16px;
-            line-height: 1.5;
-        }
-
-        .dork-preview {
-            background: var(--bg-primary);
-            padding: 12px;
-            border-radius: 6px;
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
-            color: var(--accent-success);
-            margin-bottom: 16px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            border: 1px solid var(--border-primary);
-            position: relative;
-        }
-
-        .dork-preview::before {
-            content: '>';
-            position: absolute;
-            left: 8px;
-            color: var(--accent-primary);
-        }
-
-        .card-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn {
-            padding: 10px 18px;
-            border-radius: 7px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            font-weight: 600;
-            border: none;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            justify-content: center;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-
-        .btn i {
-            font-size: 0.9rem;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-            color: #000;
-            flex: 1;
-            font-weight: 700;
-        }
-
-        .btn-primary:hover { 
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 217, 255, 0.4);
-        }
-
-        .btn-secondary {
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-primary);
-        }
-
-        .btn-secondary:hover { 
-            background: var(--bg-primary);
-            border-color: var(--accent-primary);
-            color: var(--accent-primary);
-        }
-
-        .btn-action {
-            padding: 10px 22px;
-        }
-
-        /* Toast Notification */
-        .toast {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: var(--bg-card);
-            border: 1px solid var(--accent-primary);
-            padding: 18px 28px;
-            border-radius: 10px;
-            color: var(--text-primary);
-            transform: translateY(150%);
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            box-shadow: 0 10px 40px var(--shadow);
-            backdrop-filter: blur(10px);
-            min-width: 300px;
-        }
-
-        .toast.show { transform: translateY(0); }
-
-        .toast-icon { 
-            color: var(--accent-success); 
-            font-size: 1.3rem;
-        }
-
-        .toast-content {
-            flex: 1;
-        }
-
-        .toast-title {
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
-
-        .toast-message {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-
-        /* Responsive */
-        @media (max-width: 968px) {
-            body { flex-direction: column; }
-            .sidebar { 
-                width: 100%; 
-                border-right: none; 
-                border-bottom: 1px solid var(--border-primary); 
-                max-height: 250px; 
-            }
-            .grid { grid-template-columns: 1fr; }
-            .header { flex-direction: column; align-items: stretch; }
-            .controls { width: 100%; }
-        }
-
-        /* Loading Animation */
-        @keyframes shimmer {
-            0% { background-position: -1000px 0; }
-            100% { background-position: 1000px 0; }
-        }
-
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DORK CANDY ✧ Bug Bounty Dork Engine</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root{
+  --bg:#fef3e2;
+  --panel:#fffdf7;
+  --ink:#1a1a2e;
+  --line:#1a1a2e;
+  --pink:#ff9ec4;
+  --mint:#9be7c4;
+  --lav:#c4b5fd;
+  --sky:#a5d8ff;
+  --yellow:#ffe066;
+  --peach:#ffc09f;
+  --red:#ff6b6b;
+  --shadow:6px 6px 0 var(--ink);
+  --shadow-sm:3px 3px 0 var(--ink);
+  --shadow-lg:9px 9px 0 var(--ink);
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --sans:'Space Grotesk',system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:var(--sans);
+  background:var(--bg);
+  background-image:radial-gradient(var(--ink) 1.1px,transparent 1.1px);
+  background-size:26px 26px;
+  color:var(--ink);
+  display:flex;
+  height:100vh;
+  overflow:hidden;
+}
+::selection{background:var(--pink);color:var(--ink)}
+
+/* ---------- Sidebar ---------- */
+.sidebar{
+  width:300px;
+  flex-shrink:0;
+  background:var(--panel);
+  border-right:4px solid var(--line);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.brand{
+  padding:20px;
+  border-bottom:4px solid var(--line);
+  background:var(--pink);
+}
+.brand h1{
+  font-size:1.6rem;
+  font-weight:700;
+  letter-spacing:-1px;
+  display:flex;align-items:center;gap:8px;
+}
+.brand .tag{
+  font-family:var(--mono);
+  font-size:.62rem;
+  margin-top:6px;
+  background:var(--ink);
+  color:var(--yellow);
+  display:inline-block;
+  padding:3px 8px;
+  border-radius:2px;
+  letter-spacing:1px;
+}
+.nav{flex:1;overflow-y:auto;padding:14px}
+.nav-label{
+  font-family:var(--mono);
+  font-size:.6rem;
+  letter-spacing:2px;
+  opacity:.55;
+  margin:14px 6px 8px;
+  text-transform:uppercase;
+}
+.nav-btn{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:11px 12px;
+  margin-bottom:9px;
+  background:var(--panel);
+  border:3px solid var(--line);
+  border-radius:10px;
+  cursor:pointer;
+  font-family:var(--sans);
+  font-size:.86rem;
+  font-weight:600;
+  text-align:left;
+  box-shadow:var(--shadow-sm);
+  transition:transform .08s,box-shadow .08s,background .15s;
+}
+.nav-btn:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--ink)}
+.nav-btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.nav-btn.active{background:var(--lav)}
+.nav-btn .left{display:flex;align-items:center;gap:9px;overflow:hidden}
+.nav-btn .emoji{font-size:1.1rem;flex-shrink:0}
+.nav-btn .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.count{
+  font-family:var(--mono);
+  font-size:.68rem;
+  font-weight:700;
+  background:var(--ink);
+  color:#fff;
+  padding:2px 7px;
+  border-radius:20px;
+  flex-shrink:0;
+}
+.nav-btn.active .count{background:var(--pink);color:var(--ink)}
+
+.sidebar-foot{
+  border-top:4px solid var(--line);
+  padding:12px 14px;
+  display:flex;
+  gap:8px;
+}
+.theme-dot{
+  width:26px;height:26px;
+  border:3px solid var(--line);
+  border-radius:50%;
+  cursor:pointer;
+  box-shadow:var(--shadow-sm);
+  transition:transform .08s;
+}
+.theme-dot:hover{transform:scale(1.12)}
+
+/* ---------- Main ---------- */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+.topbar{
+  background:var(--panel);
+  border-bottom:4px solid var(--line);
+  padding:16px 22px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  align-items:center;
+}
+.field{position:relative;flex:1;min-width:240px}
+.field .pre{
+  position:absolute;left:13px;top:50%;transform:translateY(-50%);
+  font-family:var(--mono);font-size:.72rem;font-weight:700;
+  background:var(--mint);border:2px solid var(--line);border-radius:4px;
+  padding:2px 6px;pointer-events:none;
+}
+input,select{
+  font-family:var(--mono);
+  font-size:.92rem;
+  color:var(--ink);
+  background:#fff;
+  border:3px solid var(--line);
+  border-radius:10px;
+  padding:12px 14px;
+  box-shadow:var(--shadow-sm);
+  outline:none;
+}
+input:focus,select:focus{box-shadow:var(--shadow);transform:translate(-1px,-1px)}
+#target{width:100%;padding-left:74px;font-weight:600}
+#search{width:100%;padding-left:40px}
+.field.search .pre{background:transparent;border:none;left:12px;font-size:1rem}
+select{cursor:pointer;font-weight:600;font-family:var(--sans)}
+
+.btn{
+  font-family:var(--sans);
+  font-weight:700;
+  font-size:.85rem;
+  border:3px solid var(--line);
+  border-radius:10px;
+  padding:11px 16px;
+  cursor:pointer;
+  box-shadow:var(--shadow-sm);
+  transition:transform .08s,box-shadow .08s;
+  display:inline-flex;align-items:center;gap:7px;
+  white-space:nowrap;
+}
+.btn:hover{transform:translate(-2px,-2px);box-shadow:5px 5px 0 var(--ink)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.btn-pink{background:var(--pink)}
+.btn-mint{background:var(--mint)}
+.btn-yellow{background:var(--yellow)}
+.btn-sky{background:var(--sky)}
+.btn-lav{background:var(--lav)}
+.btn-ghost{background:#fff}
+
+/* engine chips */
+.engines{
+  background:var(--panel);
+  border-bottom:4px solid var(--line);
+  padding:12px 22px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+}
+.engines .lbl{font-family:var(--mono);font-size:.62rem;letter-spacing:1.5px;opacity:.6;text-transform:uppercase}
+.chip{
+  font-family:var(--mono);
+  font-size:.74rem;
+  font-weight:700;
+  border:2px solid var(--line);
+  border-radius:20px;
+  padding:6px 12px;
+  background:#fff;
+  cursor:pointer;
+  box-shadow:2px 2px 0 var(--ink);
+  transition:transform .07s,box-shadow .07s;
+  display:flex;align-items:center;gap:6px;
+}
+.chip:hover{transform:translate(-1px,-1px)}
+.chip.on{background:var(--sky)}
+.chip .grp{font-size:.6rem;opacity:.5}
+
+/* controls row */
+.controls{
+  padding:14px 22px;
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  border-bottom:4px solid var(--line);
+  background:var(--bg);
+}
+.delaybox{
+  display:flex;align-items:center;gap:10px;
+  background:var(--panel);
+  border:3px solid var(--line);border-radius:10px;
+  padding:7px 14px;box-shadow:var(--shadow-sm);
+}
+.delaybox label{font-size:.75rem;font-weight:600}
+input[type=range]{padding:0;border:none;box-shadow:none;width:110px;accent-color:var(--pink);cursor:pointer}
+.delay-val{font-family:var(--mono);font-weight:700;background:var(--yellow);border:2px solid var(--line);border-radius:5px;padding:1px 7px;font-size:.78rem}
+.spacer{flex:1}
+.stat{
+  font-family:var(--mono);font-size:.74rem;font-weight:700;
+  background:var(--panel);border:3px solid var(--line);border-radius:10px;
+  padding:8px 12px;box-shadow:var(--shadow-sm);
+  display:flex;gap:7px;align-items:center;
+}
+.stat b{background:var(--mint);padding:0 6px;border-radius:4px;border:1.5px solid var(--line)}
+
+/* content */
+.content{flex:1;overflow-y:auto;padding:22px}
+.section-head{margin-bottom:18px}
+.section-head h2{font-size:1.7rem;letter-spacing:-1px;display:flex;align-items:center;gap:10px}
+.section-head p{font-size:.9rem;opacity:.7;margin-top:4px;max-width:680px}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(340px,1fr));
+  gap:18px;
+}
+.card{
+  background:var(--panel);
+  border:3px solid var(--line);
+  border-radius:14px;
+  padding:16px;
+  box-shadow:var(--shadow);
+  display:flex;flex-direction:column;gap:11px;
+  transition:transform .1s,box-shadow .1s;
+}
+.card:hover{transform:translate(-3px,-3px);box-shadow:var(--shadow-lg)}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.card-title{display:flex;align-items:center;gap:9px;font-weight:700;font-size:1rem;line-height:1.2}
+.card-title .em{font-size:1.3rem}
+.sev{
+  font-family:var(--mono);font-size:.58rem;font-weight:700;letter-spacing:.5px;
+  border:2px solid var(--line);border-radius:20px;padding:2px 8px;text-transform:uppercase;flex-shrink:0;
+}
+.sev.info{background:var(--sky)}
+.sev.low{background:var(--mint)}
+.sev.med{background:var(--yellow)}
+.sev.high{background:var(--peach)}
+.sev.crit{background:var(--red);color:#fff}
+.card-desc{font-size:.82rem;opacity:.72;line-height:1.4}
+.dork-box{
+  font-family:var(--mono);font-size:.76rem;line-height:1.5;
+  background:var(--bg);
+  border:2px dashed var(--line);
+  border-radius:8px;
+  padding:10px 12px;
+  word-break:break-word;
+  max-height:140px;overflow:auto;
+}
+.dork-box .hl{background:var(--pink);border-radius:3px;padding:0 3px;font-weight:700}
+.card-acts{display:flex;gap:8px;margin-top:auto}
+.card-acts .btn{flex:1;justify-content:center;padding:9px;font-size:.78rem}
+.fav{
+  border:3px solid var(--line);border-radius:10px;background:#fff;
+  width:40px;flex:0 0 40px !important;font-size:1rem;
+  box-shadow:var(--shadow-sm);cursor:pointer;
+}
+.fav.on{background:var(--yellow)}
+
+.empty{
+  text-align:center;padding:70px 20px;opacity:.6;
+  font-family:var(--mono);font-size:.95rem;
+}
+.empty .big{font-size:3rem;display:block;margin-bottom:10px}
+
+/* custom builder modal */
+.modal-bg{
+  position:fixed;inset:0;background:rgba(26,26,46,.45);
+  display:none;align-items:center;justify-content:center;z-index:100;padding:20px;
+}
+.modal-bg.show{display:flex}
+.modal{
+  background:var(--panel);border:4px solid var(--line);border-radius:16px;
+  box-shadow:var(--shadow-lg);padding:24px;width:100%;max-width:520px;
+}
+.modal h3{font-size:1.3rem;margin-bottom:6px}
+.modal p{font-size:.82rem;opacity:.7;margin-bottom:16px}
+.modal label{font-size:.72rem;font-weight:700;font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;display:block;margin:12px 0 5px}
+.modal input,.modal textarea{width:100%;font-family:var(--mono);font-size:.85rem;background:#fff;border:3px solid var(--line);border-radius:10px;padding:11px;box-shadow:var(--shadow-sm)}
+.modal textarea{min-height:80px;resize:vertical}
+.modal-acts{display:flex;gap:10px;margin-top:20px}
+.modal-acts .btn{flex:1;justify-content:center}
+
+/* toast */
+.toast{
+  position:fixed;bottom:26px;right:26px;
+  background:var(--ink);color:#fff;
+  border:3px solid var(--ink);border-radius:12px;
+  padding:14px 18px;min-width:240px;
+  box-shadow:6px 6px 0 var(--pink);
+  transform:translateY(140%);transition:transform .35s cubic-bezier(.2,1.3,.4,1);
+  z-index:200;
+}
+.toast.show{transform:translateY(0)}
+.toast .t{font-weight:700;font-size:.95rem;display:flex;align-items:center;gap:8px}
+.toast .m{font-size:.78rem;opacity:.85;margin-top:3px;font-family:var(--mono)}
+
+/* scrollbars */
+.nav::-webkit-scrollbar,.content::-webkit-scrollbar,.dork-box::-webkit-scrollbar{width:10px;height:10px}
+.nav::-webkit-scrollbar-thumb,.content::-webkit-scrollbar-thumb,.dork-box::-webkit-scrollbar-thumb{background:var(--ink);border-radius:10px;border:2px solid var(--bg)}
+.nav::-webkit-scrollbar-track,.content::-webkit-scrollbar-track{background:transparent}
+
+@media(max-width:780px){
+  .sidebar{position:fixed;z-index:50;height:100%;transform:translateX(-100%);transition:transform .25s}
+  .sidebar.open{transform:translateX(0)}
+  .menu-toggle{display:inline-flex !important}
+}
+.menu-toggle{display:none}
+</style>
 </head>
 <body>
 
-    <div class="sidebar">
-        <div class="logo">
-            <i class="fas fa-crosshairs"></i>
-            <span>NEXUS</span>
-        </div>
-        <div class="logo-subtitle">BUG BOUNTY ENGINE v3.0</div>
-        <div id="nav-container"></div>
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <h1>🍬 DORK CANDY</h1>
+    <span class="tag">BUG BOUNTY DORK ENGINE v4</span>
+  </div>
+  <nav class="nav" id="nav"></nav>
+  <div class="sidebar-foot" id="themes"></div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="btn btn-ghost menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+    <div class="field">
+      <span class="pre">TARGET</span>
+      <input id="target" placeholder="example.com" autocomplete="off" spellcheck="false">
     </div>
-
-    <div class="main">
-        <div class="stats-bar">
-            <div class="stat-item">
-                <i class="fas fa-database"></i>
-                <span>Total: <span class="stat-value" id="total-dorks">0</span></span>
-            </div>
-            <div class="stat-item">
-                <i class="fas fa-folder-open"></i>
-                <span>Category: <span class="stat-value" id="current-cat">-</span></span>
-            </div>
-            <div class="stat-item">
-                <i class="fas fa-search"></i>
-                <span>Engine: <span class="stat-value" id="current-engine">Google</span></span>
-            </div>
-            <div class="stat-item">
-                <i class="fas fa-bullseye"></i>
-                <span>Target: <span class="stat-value" id="target-display">Not Set</span></span>
-            </div>
-        </div>
-
-        <header class="header">
-            <div class="input-group">
-                <span class="input-label"><i class="fas fa-bullseye"></i> TARGET</span>
-                <input type="text" id="target" placeholder="example.com">
-            </div>
-            <select id="engine-select" class="engine-select">
-                <option value="google"><i class="fab fa-google"></i> Google</option>
-                <option value="bing">Bing</option>
-                <option value="duckduckgo">DuckDuckGo</option>
-                <option value="yandex">Yandex</option>
-                <option value="baidu">Baidu</option>
-                <option value="shodan">Shodan</option>
-                <option value="censys">Censys</option>
-                <option value="zoomeye">ZoomEye</option>
-                <option value="fofa">FOFA</option>
-                <option value="netlas">Netlas</option>
-                <option value="criminalip">Criminal IP</option>
-                <option value="github">GitHub</option>
-            </select>
-        </header>
-
-        <div class="content">
-            <div class="section-header">
-                <div class="section-title">
-                    <h2 id="current-section-title"><i class="fas fa-radar"></i> Reconnaissance</h2>
-                    <div class="section-subtitle" id="section-desc">Initial footprinting and asset discovery</div>
-                </div>
-                <div class="controls">
-                    <div class="delay-control">
-                        <i class="fas fa-clock"></i>
-                        <span>Delay:</span>
-                        <input type="range" id="delay-slider" min="0" max="5" step="0.5" value="1">
-                        <span id="delay-val">1s</span>
-                    </div>
-                    <button class="btn btn-secondary btn-action" onclick="copyAll()">
-                        <i class="fas fa-copy"></i> Copy All
-                    </button>
-                    <button class="btn btn-primary btn-action" onclick="runAll()">
-                        <i class="fas fa-rocket"></i> RUN SECTION
-                    </button>
-                </div>
-            </div>
-
-            <div id="dork-grid" class="grid"></div>
-        </div>
+    <div class="field search">
+      <span class="pre">🔍</span>
+      <input id="search" placeholder="Filter dorks across all categories…  (press /)" autocomplete="off">
     </div>
+  </div>
 
-    <div id="toast" class="toast">
-        <i class="fas fa-check-circle toast-icon"></i>
-        <div class="toast-content">
-            <div class="toast-title" id="toast-title">Success</div>
-            <div class="toast-message" id="toast-msg">Operation completed</div>
-        </div>
+  <div class="engines" id="engines"><span class="lbl">Engines</span></div>
+
+  <div class="controls">
+    <button class="btn btn-pink" onclick="runAll()">▶ Run All</button>
+    <button class="btn btn-mint" onclick="copyAll()">⧉ Copy All</button>
+    <button class="btn btn-sky" onclick="exportAll()">⬇ Export .txt</button>
+    <button class="btn btn-lav" onclick="openBuilder()">✨ Custom Dork</button>
+    <div class="delaybox">
+      <label>Delay</label>
+      <input type="range" id="delay" min="0" max="5" step="0.5" value="1">
+      <span class="delay-val" id="delay-val">1s</span>
     </div>
+    <div class="spacer"></div>
+    <div class="stat">📊 <span id="stat-cat">0</span> shown</div>
+    <div class="stat">📦 Total <b id="stat-total">0</b></div>
+    <div class="stat">⭐ <b id="stat-fav">0</b></div>
+  </div>
 
-    <script>
-        const DB = {
-            "Bug Bounty Programs": {
-                icon: "fa-bug",
-                desc: "Discover active bug bounty programs and disclosure policies",
-                dorks: [
-                    { icon: "fa-file-shield", title: "Security.txt Files", desc: "RFC-compliant security contact info", dork: "inurl:/.well-known/security.txt \"{{target}}\"" },
-                    { icon: "fa-award", title: "Bug Bounty Pages", desc: "Dedicated bounty program pages", dork: "site:{{target}} inurl:/bug-bounty | inurl:/security | inurl:/responsible-disclosure" },
-                    { icon: "fa-h-square", title: "HackerOne Programs", desc: "Programs hosted on HackerOne", dork: "\"powered by hackerone\" site:{{target}} -site:hackerone.com" },
-                    { icon: "fa-crow", title: "Bugcrowd Programs", desc: "Programs hosted on Bugcrowd", dork: "\"powered by bugcrowd\" site:{{target}} -site:bugcrowd.com" },
-                    { icon: "fa-shield-halved", title: "Responsible Disclosure", desc: "Vulnerability disclosure policies", dork: "site:{{target}} intext:\"responsible disclosure\" | \"vulnerability disclosure\" | \"security policy\"" },
-                    { icon: "fa-dollar-sign", title: "Security Rewards", desc: "Pages mentioning bounty rewards", dork: "site:{{target}} intext:\"reward\" | \"bounty\" \"security vulnerability\"" },
-                    { icon: "fa-flag", title: "Vulnerability Reporting", desc: "Report submission endpoints", dork: "site:{{target}} inurl:/report | inurl:vulnerability-disclosure | inurl:security-report" },
-                    { icon: "fa-envelope", title: "Security Contacts", desc: "Security team emails", dork: "site:{{target}} inurl:security.txt intext:\"mailto\" -github -wikipedia" }
-                ]
-            },
+  <div class="content">
+    <div class="section-head">
+      <h2 id="sec-title">🎯 Loading…</h2>
+      <p id="sec-desc"></p>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+</main>
 
-            "Reconnaissance": {
-                icon: "fa-radar",
-                desc: "Advanced reconnaissance and asset discovery techniques",
-                dorks: [
-                    { icon: "fa-sitemap", title: "Subdomain Enumeration", desc: "Discover all indexed subdomains", dork: "site:{{target}} -www -inurl:www" },
-                    { icon: "fa-network-wired", title: "Wildcard Subdomains", desc: "Find wildcard subdomain patterns", dork: "site:*.{{target}} -site:www.{{target}}" },
-                    { icon: "fa-folder-tree", title: "Directory Listing", desc: "Exposed directory indexes", dork: "site:{{target}} intitle:\"index of\" | intitle:\"directory listing\"" },
-                    { icon: "fa-link", title: "Related Domains", desc: "Sites related to target", dork: "related:{{target}}" },
-                    { icon: "fa-clock-rotate-left", title: "Cached Pages", desc: "Google cached versions", dork: "cache:{{target}}" },
-                    { icon: "fa-globe", title: "All Indexed Pages", desc: "Complete site index", dork: "site:{{target}}" },
-                    { icon: "fa-file-pdf", title: "Public Documents", desc: "Exposed PDF, DOC, XLS files", dork: "site:{{target}} (ext:doc | ext:docx | ext:pdf | ext:xls | ext:xlsx | ext:ppt | ext:pptx)" },
-                    { icon: "fa-file-lines", title: "Text Files", desc: "Readme and text files", dork: "site:{{target}} (ext:txt | ext:md | ext:log | ext:rtf)" },
-                    { icon: "fa-file-zipper", title: "Compressed Archives", desc: "ZIP, RAR, TAR files", dork: "site:{{target}} (ext:zip | ext:rar | ext:tar | ext:gz | ext:7z)" },
-                    { icon: "fa-clock", title: "Backup Files", desc: "Forgotten backup files", dork: "site:{{target}} (ext:bkf | ext:bkp | ext:bak | ext:old | ext:backup | ext:~)" },
-                    { icon: "fa-table", title: "CSV Data Files", desc: "Data exports and dumps", dork: "site:{{target}} ext:csv" },
-                    { icon: "fa-code", title: "Source Code Files", desc: "Exposed source code", dork: "site:{{target}} (ext:php | ext:asp | ext:aspx | ext:jsp | ext:java)" },
-                    { icon: "fa-gears", title: "Configuration Files", desc: "Config and settings files", dork: "site:{{target}} (ext:xml | ext:conf | ext:config | ext:cfg | ext:ini)" },
-                    { icon: "fa-database", title: "Database Files", desc: "SQL dumps and databases", dork: "site:{{target}} (ext:sql | ext:dbf | ext:mdb | ext:sqlite | ext:db)" },
-                    { icon: "fa-terminal", title: "Shell Scripts", desc: "Bash, Python, Ruby scripts", dork: "site:{{target}} (ext:sh | ext:py | ext:rb | ext:pl | ext:bat)" },
-                    { icon: "fa-at", title: "Email Addresses", desc: "Harvest email addresses", dork: "site:{{target}} intext:@{{target}} | intext:email | intext:contact" },
-                    { icon: "fa-phone", title: "Phone Numbers", desc: "Contact information", dork: "site:{{target}} intext:\"phone\" | intext:\"tel\" | intext:\"mobile\"" },
-                    { icon: "fa-user-shield", title: "Employee Names", desc: "Staff information", dork: "site:{{target}} intext:\"employee\" | intext:\"team\" | intext:\"staff\"" },
-                    { icon: "fa-building", title: "Physical Addresses", desc: "Location information", dork: "site:{{target}} intext:\"address\" | intext:\"location\" | intext:\"headquarters\"" },
-                    { icon: "fa-diagram-project", title: "Technology Stack", desc: "Identify technologies used", dork: "site:{{target}} intext:\"powered by\" | intext:\"built with\"" },
-                    { icon: "fa-file-invoice", title: "Financial Documents", desc: "Invoices, receipts, quotes", dork: "site:{{target}} (intext:\"invoice\" | intext:\"receipt\" | intext:\"quote\") (ext:pdf | ext:xls)" },
-                    { icon: "fa-presentation-screen", title: "Presentations", desc: "PowerPoint and presentations", dork: "site:{{target}} (ext:ppt | ext:pptx | ext:odp)" },
-                    { icon: "fa-file-excel", title: "Spreadsheets", desc: "Excel and calc files", dork: "site:{{target}} (ext:xls | ext:xlsx | ext:ods | ext:csv)" },
-                    { icon: "fa-server", title: "Server Information", desc: "Server configs and info", dork: "site:{{target}} intitle:\"server status\" | intitle:\"server info\"" },
-                    { icon: "fa-route", title: "URL Parameters", desc: "Pages with GET parameters", dork: "site:{{target}} inurl:? | inurl:= | inurl:&" },
-                    { icon: "fa-sign-in", title: "Login Pages", desc: "All authentication endpoints", dork: "site:{{target}} (inurl:login | inurl:signin | inurl:auth | inurl:sso)" },
-                    { icon: "fa-user-plus", title: "Registration Pages", desc: "User signup forms", dork: "site:{{target}} (inurl:register | inurl:signup | inurl:join)" },
-                    { icon: "fa-key", title: "Password Reset", desc: "Password recovery pages", dork: "site:{{target}} (inurl:forgot | inurl:reset | inurl:recover)" },
-                    { icon: "fa-magnifying-glass-chart", title: "Search Functionality", desc: "Internal search pages", dork: "site:{{target}} (inurl:search | inurl:query | inurl:find)" },
-                    { icon: "fa-upload", title: "Upload Forms", desc: "File upload endpoints", dork: "site:{{target}} (inurl:upload | intext:\"choose file\" | intext:\"browse\")" }
-                ]
-            },
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h3>✨ Custom Dork Builder</h3>
+    <p>Use <b>%D%</b> where the target domain should go. It will be saved to your Favorites.</p>
+    <label>Title</label>
+    <input id="cd-title" placeholder="My juicy dork">
+    <label>Dork query</label>
+    <textarea id="cd-dork" placeholder='site:%D% inurl:admin intext:"password"'></textarea>
+    <div class="modal-acts">
+      <button class="btn btn-ghost" onclick="closeBuilder()">Cancel</button>
+      <button class="btn btn-pink" onclick="saveCustom()">💾 Save &amp; Run</button>
+    </div>
+  </div>
+</div>
 
-            "Sensitive Files": {
-                icon: "fa-key",
-                desc: "Credentials, configurations, and sensitive data exposure",
-                dorks: [
-                    { icon: "fa-file-code", title: "Environment Files", desc: ".env files with secrets", dork: "site:{{target}} (ext:env | ext:ini) (intext:\"DB_PASSWORD\" | intext:\"API_KEY\" | intext:\"SECRET\")" },
-                    { icon: "fa-cog", title: "Config Files", desc: "Application configurations", dork: "site:{{target}} (ext:xml | ext:conf | ext:cnf | ext:config | ext:cfg)" },
-                    { icon: "fa-database", title: "Database Dumps", desc: "SQL dumps and backups", dork: "site:{{target}} (ext:sql | ext:dbf | ext:mdb | ext:sqlite) (intext:\"INSERT INTO\" | intext:\"CREATE TABLE\")" },
-                    { icon: "fa-code-branch", title: "Git Exposure", desc: "Exposed .git directories", dork: "site:{{target}} (inurl:/.git | inurl:.git/config | inurl:.git/HEAD)" },
-                    { icon: "fa-folder-open", title: "SVN Exposure", desc: "Subversion repositories", dork: "site:{{target}} (inurl:/.svn | inurl:.svn/entries | inurl:.svn/all-wcprops)" },
-                    { icon: "fa-wordpress", title: "WordPress Config", desc: "wp-config.php files", dork: "site:{{target}} (inurl:wp-config.php | inurl:wp-config.bak | inurl:wp-config.txt)" },
-                    { icon: "fa-info-circle", title: "PHP Info Pages", desc: "phpinfo() disclosure", dork: "site:{{target}} ext:php intitle:phpinfo \"PHP Version\"" },
-                    { icon: "fa-lock", title: "SSH Private Keys", desc: "Exposed SSH keys", dork: "site:{{target}} intitle:\"index of\" (\"id_rsa\" | \"id_dsa\" | \"id_ecdsa\")" },
-                    { icon: "fa-network-wired", title: "FTP Credentials", desc: "FileZilla and FTP configs", dork: "site:{{target}} intitle:\"index of\" (\"filezilla.xml\" | \"sitemanager.xml\" | \"recentservers.xml\")" },
-                    { icon: "fa-plug", title: "Database Credentials", desc: "DB connection strings", dork: "site:{{target}} (intext:\"mysql_connect\" | intext:\"mysqli_connect\" | intext:\"pg_connect\") ext:php" },
-                    { icon: "fa-key", title: "API Keys Exposed", desc: "API credentials in files", dork: "site:{{target}} (intext:\"api_key\" | intext:\"apikey\" | intext:\"api_secret\") (ext:txt | ext:json | ext:log)" },
-                    { icon: "fa-aws", title: "AWS Credentials", desc: "Amazon AWS access keys", dork: "site:{{target}} (intext:\"AKIA\" | intext:\"aws_access_key_id\" | intext:\"aws_secret_access_key\")" },
-                    { icon: "fa-certificate", title: "SSL Certificates", desc: "Certificate files", dork: "site:{{target}} (ext:pem | ext:crt | ext:cer | ext:key | ext:p12)" },
-                    { icon: "fa-lock-open", title: "Private Keys", desc: "Various private key formats", dork: "site:{{target}} (intext:\"BEGIN RSA PRIVATE KEY\" | intext:\"BEGIN PRIVATE KEY\")" },
-                    { icon: "fa-user-secret", title: "Password Files", desc: "Files containing passwords", dork: "site:{{target}} (intext:\"password\" | intext:\"passwd\") (ext:txt | ext:log | ext:cfg)" }
-                ]
-            },
+<div class="toast" id="toast"><div class="t" id="toast-t"></div><div class="m" id="toast-m"></div></div>
 
-            "Login Portals": {
-                icon: "fa-right-to-bracket",
-                desc: "Administrative interfaces and authentication systems",
-                dorks: [
-                    { icon: "fa-user-shield", title: "Admin Panels", desc: "Administrative interfaces", dork: "site:{{target}} (inurl:admin | inurl:administrator | inurl:adminpanel | inurl:cpanel)" },
-                    { icon: "fa-sign-in-alt", title: "Login Pages", desc: "Authentication endpoints", dork: "site:{{target}} (inurl:login | inurl:signin | inurl:auth | inurl:authenticate)" },
-                    { icon: "fa-server", title: "CPanel/WHM", desc: "Web hosting panels", dork: "site:{{target}} (inurl:cpanel | inurl:webmail | inurl:whm | inurl:2082 | inurl:2083)" },
-                    { icon: "fa-database", title: "PHPMyAdmin", desc: "Database management", dork: "site:{{target}} (inurl:phpmyadmin | inurl:pma | inurl:dbadmin | intitle:\"phpMyAdmin\")" },
-                    { icon: "fa-wordpress", title: "WordPress Login", desc: "WP admin access", dork: "site:{{target}} (inurl:wp-admin | inurl:wp-login.php | inurl:wordpress)" },
-                    { icon: "fa-jira", title: "Jira Instances", desc: "Atlassian Jira", dork: "site:{{target}} (inurl:jira | intitle:\"Jira\" | intitle:\"Log In - Jira\")" },
-                    { icon: "fa-confluence", title: "Confluence Wiki", desc: "Atlassian Confluence", dork: "site:{{target}} (inurl:confluence | intitle:\"Confluence\" | intitle:\"Log In - Confluence\")" },
-                    { icon: "fa-jenkins", title: "Jenkins CI/CD", desc: "Jenkins automation", dork: "site:{{target}} (intitle:\"Dashboard [Jenkins]\" | inurl:jenkins)" },
-                    { icon: "fa-gitlab", title: "GitLab", desc: "GitLab repositories", dork: "site:{{target}} (inurl:gitlab | intitle:\"GitLab\" | intitle:\"Sign in · GitLab\")" },
-                    { icon: "fa-github", title: "GitHub Enterprise", desc: "Self-hosted GitHub", dork: "site:{{target}} (inurl:github | intitle:\"GitHub Enterprise\")" },
-                    { icon: "fa-envelope", title: "Webmail Interfaces", desc: "Email web access", dork: "site:{{target}} (inurl:webmail | inurl:mail | intitle:\"webmail\" | intitle:\"roundcube\")" },
-                    { icon: "fa-shield", title: "VPN Portals", desc: "VPN login pages", dork: "site:{{target}} (inurl:vpn | inurl:sslvpn | intitle:\"VPN\" | intitle:\"SSL VPN\")" },
-                    { icon: "fa-desktop", title: "Remote Desktop", desc: "RDP web access", dork: "site:{{target}} (intitle:\"Remote Desktop\" | inurl:rdp | inurl:remote)" },
-                    { icon: "fa-docker", title: "Docker Registry", desc: "Container registries", dork: "site:{{target}} (inurl:docker | intitle:\"Docker Registry\" | inurl:v2/_catalog)" },
-                    { icon: "fa-kubernetes", title: "Kubernetes Dashboard", desc: "K8s web UI", dork: "site:{{target}} (inurl:kubernetes | intitle:\"Kubernetes Dashboard\")" }
-                ]
-            },
+<script>
+const P = "%D%"; // domain placeholder token
 
-            "Cloud Assets": {
-                icon: "fa-cloud",
-                desc: "Cloud storage and third-party service exposure",
-                dorks: [
-                    { icon: "fa-aws", title: "AWS S3 Buckets", desc: "Amazon S3 storage", dork: "site:s3.amazonaws.com \"{{target}}\"" },
-                    { icon: "fa-microsoft", title: "Azure Blob Storage", desc: "Microsoft Azure containers", dork: "site:blob.core.windows.net \"{{target}}\"" },
-                    { icon: "fa-google", title: "Google Cloud Storage", desc: "GCP buckets", dork: "(site:googleapis.com | site:storage.googleapis.com) \"{{target}}\"" },
-                    { icon: "fa-droplet", title: "DigitalOcean Spaces", desc: "DO object storage", dork: "site:digitaloceanspaces.com \"{{target}}\"" },
-                    { icon: "fa-fire", title: "Firebase Databases", desc: "Firebase instances", dork: "site:firebaseio.com \"{{target}}\"" },
-                    { icon: "fa-cloud-arrow-down", title: "CloudFront CDN", desc: "AWS CloudFront", dork: "site:cloudfront.net \"{{target}}\"" },
-                    { icon: "fa-google-drive", title: "Google Drive Docs", desc: "Public Drive files", dork: "(site:docs.google.com | site:drive.google.com) \"{{target}}\"" },
-                    { icon: "fa-trello", title: "Trello Boards", desc: "Public Trello boards", dork: "site:trello.com \"{{target}}\"" },
-                    { icon: "fa-clipboard", title: "Pastebin Dumps", desc: "Code pastes", dork: "site:pastebin.com \"{{target}}\"" },
-                    { icon: "fa-github", title: "GitHub Repositories", desc: "Public repos", dork: "site:github.com \"{{target}}\"" },
-                    { icon: "fa-gitlab", title: "GitLab Projects", desc: "Public GitLab code", dork: "site:gitlab.com \"{{target}}\"" },
-                    { icon: "fa-bitbucket", title: "Bitbucket Repos", desc: "Bitbucket code", dork: "site:bitbucket.org \"{{target}}\"" },
-                    { icon: "fa-slack", title: "Slack Workspaces", desc: "Public Slack archives", dork: "site:slack.com \"{{target}}\"" },
-                    { icon: "fa-docker", title: "Docker Hub Images", desc: "Public containers", dork: "site:hub.docker.com \"{{target}}\"" }
-                ]
-            },
+/* ============ ENGINE URLS (verified correct) ============ */
+const b64 = s => btoa(unescape(encodeURIComponent(s)));
+const E = encodeURIComponent;
+const ENGINES = {
+  google:     {name:"Google",     grp:"web",   url:q=>`https://www.google.com/search?q=${E(q)}&num=100`},
+  bing:       {name:"Bing",       grp:"web",   url:q=>`https://www.bing.com/search?q=${E(q)}`},
+  duck:       {name:"DuckDuckGo", grp:"web",   url:q=>`https://duckduckgo.com/?q=${E(q)}`},
+  brave:      {name:"Brave",      grp:"web",   url:q=>`https://search.brave.com/search?q=${E(q)}`},
+  yandex:     {name:"Yandex",     grp:"web",   url:q=>`https://yandex.com/search/?text=${E(q)}`},
+  startpage:  {name:"Startpage",  grp:"web",   url:q=>`https://www.startpage.com/sp/search?query=${E(q)}`},
+  baidu:      {name:"Baidu",      grp:"web",   url:q=>`https://www.baidu.com/s?wd=${E(q)}`},
+  shodan:     {name:"Shodan",     grp:"recon", url:q=>`https://www.shodan.io/search?query=${E(q)}`},
+  censys:     {name:"Censys",     grp:"recon", url:q=>`https://search.censys.io/search?resource=hosts&q=${E(q)}`},
+  fofa:       {name:"FOFA",       grp:"recon", url:q=>`https://en.fofa.info/result?qbase64=${E(b64(q))}`},
+  zoomeye:    {name:"ZoomEye",    grp:"recon", url:q=>`https://www.zoomeye.org/searchResult?q=${E(q)}`},
+  netlas:     {name:"Netlas",     grp:"recon", url:q=>`https://app.netlas.io/responses/?q=${E(q)}`},
+  github:     {name:"GitHub",     grp:"code",  url:q=>`https://github.com/search?q=${E(q)}&type=code`},
+  grep:       {name:"grep.app",   grp:"code",  url:q=>`https://grep.app/search?q=${E(q)}`},
+  wayback:    {name:"Wayback",    grp:"recon", url:q=>`https://web.archive.org/web/*/${q.replace(/^site:/,'').split(' ')[0]}*`},
+};
+let selectedEngines = new Set(["google"]);
 
-            "API & Endpoints": {
-                icon: "fa-plug",
-                desc: "API discovery and endpoint enumeration",
-                dorks: [
-                    { icon: "fa-route", title: "REST API Endpoints", desc: "RESTful APIs", dork: "site:{{target}} (inurl:/api/ | inurl:/rest/ | inurl:/v1/ | inurl:/v2/ | inurl:/v3/)" },
-                    { icon: "fa-diagram-project", title: "GraphQL APIs", desc: "GraphQL endpoints", dork: "site:{{target}} (inurl:graphql | inurl:graphiql | inurl:/v1/graphql)" },
-                    { icon: "fa-book", title: "Swagger/OpenAPI", desc: "API documentation", dork: "site:{{target}} (inurl:swagger | inurl:api-docs | intitle:\"Swagger UI\" | inurl:openapi)" },
-                    { icon: "fa-key", title: "API Keys in URLs", desc: "Exposed keys in params", dork: "site:{{target}} (inurl:api_key= | inurl:apikey= | inurl:key= | inurl:token=)" },
-                    { icon: "fa-file-code", title: "WSDL Files", desc: "SOAP services", dork: "site:{{target}} filetype:wsdl" },
-                    { icon: "fa-file-lines", title: "WADL Files", desc: "Web app descriptions", dork: "site:{{target}} filetype:wadl" },
-                    { icon: "fa-code", title: "JSON Endpoints", desc: "JSON API responses", dork: "site:{{target}} (ext:json | inurl:.json) -github" },
-                    { icon: "fa-file-code", title: "XML API Files", desc: "XML data endpoints", dork: "site:{{target}} (ext:xml | inurl:.xml) -sitemap" },
-                    { icon: "fa-circle-check", title: "API Health Checks", desc: "Health/status endpoints", dork: "site:{{target}} (inurl:/health | inurl:/status | inurl:/ping | inurl:/alive)" },
-                    { icon: "fa-shield-halved", title: "OAuth Endpoints", desc: "OAuth flows", dork: "site:{{target}} (inurl:oauth | inurl:/authorize | inurl:/token | inurl:/callback)" },
-                    { icon: "fa-webhook", title: "Webhooks", desc: "Webhook endpoints", dork: "site:{{target}} (inurl:webhook | inurl:callback | inurl:notify)" }
-                ]
-            },
+/* ============ DORK DATABASE (smarter, deduped, severity-rated) ============ */
+const DB = {
+  "Bug Bounty Programs":{emoji:"🎯",desc:"Find live programs, disclosure policies, and security contacts.",dorks:[
+    {em:"📄",t:"security.txt",d:"RFC 9116 security contact files",s:"info",q:`site:${P} inurl:"/.well-known/security.txt"`},
+    {em:"🏆",t:"Disclosure / VDP pages",d:"Responsible-disclosure & policy pages",s:"info",q:`site:${P} (inurl:bug-bounty | inurl:responsible-disclosure | inurl:vulnerability-disclosure | inurl:security/policy)`},
+    {em:"🔷",t:"HackerOne (self-hosted)",d:"H1-powered pages off-platform",s:"info",q:`"submit a report" ("hackerone" | inurl:hackerone.com) site:${P}`},
+    {em:"🐦",t:"Bugcrowd (self-hosted)",d:"Bugcrowd-powered programs",s:"info",q:`("bugcrowd" | inurl:bugcrowd.com) site:${P}`},
+    {em:"💰",t:"Reward / Bounty mentions",d:"Pages promising rewards",s:"info",q:`site:${P} intext:("bug bounty" | "security reward" | "swag") intext:"vulnerability"`},
+    {em:"✉️",t:"Security contact emails",d:"security@/abuse@ addresses",s:"info",q:`site:${P} (intext:"security@" | intext:"abuse@" | intext:"psirt")`},
+  ]},
 
-            "Vulnerability Parameters": {
-                icon: "fa-bug",
-                desc: "Parameters prone to common web vulnerabilities",
-                dorks: [
-                    { icon: "fa-database", title: "SQL Injection", desc: "SQLi-prone params", dork: "site:{{target}} (inurl:id= | inurl:pid= | inurl:category= | inurl:cat= | inurl:page_id=)" },
-                    { icon: "fa-code", title: "XSS Parameters", desc: "Reflected XSS targets", dork: "site:{{target}} (inurl:q= | inurl:s= | inurl:search= | inurl:query= | inurl:keyword=)" },
-                    { icon: "fa-file", title: "LFI/RFI Params", desc: "File inclusion vulns", dork: "site:{{target}} (inurl:file= | inurl:path= | inurl:folder= | inurl:include= | inurl:page=)" },
-                    { icon: "fa-arrow-right", title: "Open Redirects", desc: "Redirect parameters", dork: "site:{{target}} (inurl:redirect= | inurl:url= | inurl:return= | inurl:next= | inurl:goto=)" },
-                    { icon: "fa-server", title: "SSRF Parameters", desc: "Server-side requests", dork: "site:{{target}} (inurl:http= | inurl:https= | inurl:proxy= | inurl:uri= | inurl:dest=)" },
-                    { icon: "fa-upload", title: "File Upload Forms", desc: "Upload functionality", dork: "site:{{target}} (inurl:upload | inurl:file_upload | intext:\"choose file\" | intext:\"select file\")" },
-                    { icon: "fa-file-code", title: "XXE Targets", desc: "XML processing", dork: "site:{{target}} (inurl:xml | inurl:xmlrpc | inurl:soap | inurl:rss)" },
-                    { icon: "fa-terminal", title: "Command Injection", desc: "OS command params", dork: "site:{{target}} (inurl:cmd= | inurl:exec= | inurl:command= | inurl:ping= | inurl:shell=)" },
-                    { icon: "fa-fingerprint", title: "IDOR Parameters", desc: "Object references", dork: "site:{{target}} (inurl:user= | inurl:userid= | inurl:account= | inurl:id= | inurl:profile=)" },
-                    { icon: "fa-bars", title: "Template Injection", desc: "Template params", dork: "site:{{target}} (inurl:template= | inurl:view= | inurl:page= | inurl:render=)" }
-                ]
-            },
+  "Recon & Subdomains":{emoji:"📡",desc:"Map the attack surface: subdomains, dev/staging hosts, and parameters.",dorks:[
+    {em:"🕸️",t:"All subdomains",d:"Everything except www",s:"info",q:`site:*.${P} -www`},
+    {em:"🧪",t:"Dev / staging / test",d:"Non-prod environments",s:"med",q:`site:*.${P} (inurl:dev | inurl:staging | inurl:test | inurl:uat | inurl:qa | inurl:demo | inurl:sandbox)`},
+    {em:"🚪",t:"Internal / hidden hosts",d:"VPN, internal, admin subdomains",s:"high",q:`site:*.${P} (inurl:internal | inurl:admin | inurl:vpn | inurl:jenkins | inurl:gitlab | inurl:jira)`},
+    {em:"❓",t:"URLs with parameters",d:"Dynamic endpoints to fuzz",s:"low",q:`site:${P} inurl:(? | & | =) -inurl:(.html | .png | .jpg | .css | .js)`},
+    {em:"📁",t:"Open directory listings",d:"Index Of… exposures",s:"med",q:`site:${P} intitle:"index of" -inurl:(html | htm | php | asp)`},
+    {em:"🔗",t:"Redirect & proxy params",d:"url=/next=/dest= endpoints",s:"med",q:`site:${P} inurl:(url= | next= | redirect= | dest= | return= | continue=)`},
+    {em:"🗺️",t:"Sitemaps",d:"XML sitemaps for endpoint discovery",s:"info",q:`site:${P} (inurl:sitemap.xml | inurl:sitemap_index.xml | filetype:xml inurl:sitemap)`},
+  ]},
 
-            "Error Messages": {
-                icon: "fa-triangle-exclamation",
-                desc: "Error pages revealing sensitive information",
-                dorks: [
-                    { icon: "fa-database", title: "SQL Errors", desc: "Database errors", dork: "site:{{target}} (intext:\"SQL syntax\" | intext:\"mysql_fetch\" | intext:\"mysqli error\" | intext:\"ORA-\")" },
-                    { icon: "fa-php", title: "PHP Errors", desc: "PHP warnings", dork: "site:{{target}} (\"PHP Parse error\" | \"PHP Warning\" | \"Fatal error\" | \"include_path\")" },
-                    { icon: "fa-microsoft", title: "ASP.NET Errors", desc: "ASP debug info", dork: "site:{{target}} (intext:\"Server Error\" intext:\"ASP.NET\" | intext:\"Stack Trace\")" },
-                    { icon: "fa-java", title: "Java Stack Traces", desc: "Java exceptions", dork: "site:{{target}} (intext:\"java.lang\" | intext:\"javax.servlet\" | intext:\"Exception in thread\")" },
-                    { icon: "fa-python", title: "Python Tracebacks", desc: "Python errors", dork: "site:{{target}} (intext:\"Traceback\" | intext:\"Django\" | intext:\"Flask\" | intext:\"Python\")" },
-                    { icon: "fa-gem", title: "Ruby Errors", desc: "Rails errors", dork: "site:{{target}} (intext:\"Ruby\" intext:\"Backtrace\" | intext:\"Rails.root\")" },
-                    { icon: "fa-database", title: "MySQL Specific", desc: "MySQL errors", dork: "site:{{target}} (\"You have an error in your SQL syntax\" | \"supplied argument is not\")" },
-                    { icon: "fa-circle-xmark", title: "404 Info Leakage", desc: "404 pages", dork: "site:{{target}} (intitle:\"404\" | intitle:\"Not Found\" | intitle:\"Error 404\")" }
-                ]
-            },
+  "Sensitive Files & Secrets":{emoji:"🔑",desc:"Exposed configs, env files, keys, dumps, and backups.",dorks:[
+    {em:"🧬",t:".env files",d:"DB_PASSWORD / API keys in env",s:"crit",q:`site:${P} ext:env (intext:"DB_PASSWORD" | intext:"APP_KEY" | intext:"SECRET" | intext:"API_KEY")`},
+    {em:"⚙️",t:"Config files",d:"conf / cfg / ini / yml secrets",s:"high",q:`site:${P} ext:(conf | cfg | ini | yml | yaml | config) (intext:password | intext:secret | intext:token)`},
+    {em:"🗄️",t:"Database dumps",d:"SQL exports with INSERT/CREATE",s:"crit",q:`site:${P} ext:sql (intext:"INSERT INTO" | intext:"CREATE TABLE" | intext:"DROP TABLE")`},
+    {em:"🔀",t:".git exposure",d:"Exposed git config / HEAD",s:"high",q:`site:${P} (inurl:"/.git/config" | inurl:"/.git/HEAD" | intitle:"index of" ".git")`},
+    {em:"📝",t:"WordPress wp-config",d:"wp-config backups",s:"crit",q:`site:${P} (inurl:wp-config.php.bak | inurl:wp-config.php.save | inurl:wp-config.txt | inurl:wp-config.old)`},
+    {em:"🔐",t:"Private keys",d:"RSA/SSH/PEM key material",s:"crit",q:`site:${P} (intext:"BEGIN RSA PRIVATE KEY" | intext:"BEGIN OPENSSH PRIVATE KEY" | ext:pem | ext:ppk)`},
+    {em:"☁️",t:"AWS keys",d:"AKIA / access key IDs",s:"crit",q:`site:${P} (intext:"AKIA" | intext:"aws_access_key_id" | intext:"aws_secret_access_key")`},
+    {em:"📜",t:"Log files",d:"Logs leaking creds/tokens",s:"high",q:`site:${P} ext:log (intext:password | intext:error | intext:exception | intext:"api_key")`},
+    {em:"📦",t:"Backups & archives",d:"bak / old / zip / tar.gz",s:"high",q:`site:${P} ext:(bak | old | backup | zip | tar | gz | 7z | rar) -ext:html`},
+    {em:"🔑",t:"Generic credential files",d:"password / credentials text files",s:"high",q:`site:${P} (intitle:"index of" | ext:txt) ("password" | "credentials" | "passwd")`},
+  ]},
 
-            "CMS Specific": {
-                icon: "fa-wordpress",
-                desc: "Content Management System vulnerabilities",
-                dorks: [
-                    { icon: "fa-wordpress", title: "WordPress Install", desc: "WP installations", dork: "site:{{target}} (inurl:wp-content | inurl:wp-includes | inurl:wp-admin)" },
-                    { icon: "fa-plug", title: "WP Plugins", desc: "Installed plugins", dork: "site:{{target}} inurl:/wp-content/plugins/" },
-                    { icon: "fa-palette", title: "WP Themes", desc: "Active themes", dork: "site:{{target}} inurl:/wp-content/themes/" },
-                    { icon: "fa-drupal", title: "Drupal Sites", desc: "Drupal CMS", dork: "site:{{target}} (inurl:node | inurl:drupal | intext:\"Powered by Drupal\")" },
-                    { icon: "fa-joomla", title: "Joomla Install", desc: "Joomla CMS", dork: "site:{{target}} (inurl:joomla | inurl:index.php/component | intext:\"Powered by Joomla\")" },
-                    { icon: "fa-shopping-cart", title: "Magento Stores", desc: "Magento e-commerce", dork: "site:{{target}} (inurl:magento | inurl:catalog/product | inurl:checkout)" },
-                    { icon: "fa-shopify", title: "Shopify Stores", desc: "Shopify shops", dork: "site:{{target}} (inurl:myshopify.com | intext:\"Powered by Shopify\")" },
-                    { icon: "fa-comments", title: "vBulletin Forums", desc: "vBulletin software", dork: "site:{{target}} (\"Powered by vBulletin\" | inurl:vbulletin)" },
-                    { icon: "fa-message", title: "phpBB Forums", desc: "phpBB installations", dork: "site:{{target}} (\"Powered by phpBB\" | inurl:phpbb)" }
-                ]
-            },
+  "Login & Admin Portals":{emoji:"🚪",desc:"Authentication endpoints, admin panels, and management consoles.",dorks:[
+    {em:"👑",t:"Admin panels",d:"admin / administrator / cpanel",s:"med",q:`site:${P} (inurl:admin | inurl:administrator | inurl:adminpanel | inurl:backend | inurl:control)`},
+    {em:"🔑",t:"Login pages",d:"All auth entry points",s:"low",q:`site:${P} (inurl:login | inurl:signin | inurl:auth | inurl:sso | intitle:"log in")`},
+    {em:"🗄️",t:"phpMyAdmin",d:"DB management consoles",s:"high",q:`site:${P} (inurl:phpmyadmin | inurl:pma | inurl:dbadmin | intitle:"phpMyAdmin")`},
+    {em:"📧",t:"Webmail",d:"Roundcube / Zimbra / OWA",s:"med",q:`site:${P} (inurl:webmail | intitle:"roundcube" | intitle:"Outlook Web App" | inurl:owa)`},
+    {em:"🛡️",t:"VPN / remote access",d:"SSL-VPN & remote portals",s:"high",q:`site:${P} (inurl:remote/login | inurl:sslvpn | inurl:vpn | intitle:"GlobalProtect" | intitle:"FortiGate")`},
+    {em:"🔧",t:"CI/CD consoles",d:"Jenkins / GitLab / Argo",s:"high",q:`site:${P} (intitle:"Dashboard [Jenkins]" | intitle:"Sign in · GitLab" | intitle:"Argo CD")`},
+    {em:"📦",t:"Container registries",d:"Docker registry catalogs",s:"high",q:`site:${P} (inurl:"v2/_catalog" | intitle:"Docker Registry" | inurl:8080/v2)`},
+  ]},
 
-            "Server Information": {
-                icon: "fa-server",
-                desc: "Web server information disclosure",
-                dorks: [
-                    { icon: "fa-apache", title: "Apache Status", desc: "Apache status pages", dork: "site:{{target}} (intitle:\"Apache Status\" | intitle:\"Apache Server Status\")" },
-                    { icon: "fa-nginx", title: "Nginx Status", desc: "Nginx info pages", dork: "site:{{target}} (intitle:\"Welcome to nginx\" | intitle:\"nginx\")" },
-                    { icon: "fa-microsoft", title: "IIS Information", desc: "Microsoft IIS", dork: "site:{{target}} (intitle:\"IIS\" | intitle:\"Internet Information Services\")" },
-                    { icon: "fa-chart-line", title: "Server Status", desc: "Status endpoints", dork: "site:{{target}} (inurl:server-status | inurl:status)" },
-                    { icon: "fa-php", title: "PHP Info Pages", desc: "phpinfo() disclosure", dork: "site:{{target}} (intitle:phpinfo | inurl:phpinfo.php | inurl:info.php)" },
-                    { icon: "fa-file-lines", title: "Apache Logs", desc: "Exposed log files", dork: "site:{{target}} intitle:\"index of\" (\"access.log\" | \"error.log\" | \"apache.log\")" },
-                    { icon: "fa-java", title: "Tomcat Manager", desc: "Tomcat console", dork: "site:{{target}} (intitle:\"Apache Tomcat\" | inurl:manager/html)" },
-                    { icon: "fa-jboss", title: "JBoss Console", desc: "JBoss application server", dork: "site:{{target}} intitle:\"Welcome to JBoss\"" },
-                    { icon: "fa-oracle", title: "WebLogic Console", desc: "Oracle WebLogic", dork: "site:{{target}} intitle:\"Oracle WebLogic Server\"" }
-                ]
-            },
+  "Cloud & Buckets":{emoji:"☁️",desc:"Storage buckets, blobs, and third-party SaaS exposure tied to your target.",dorks:[
+    {em:"🪣",t:"AWS S3 buckets",d:"s3.amazonaws.com objects",s:"high",q:`site:s3.amazonaws.com "${P}"`},
+    {em:"🔷",t:"Azure Blob Storage",d:"blob.core.windows.net",s:"high",q:`site:blob.core.windows.net "${P}"`},
+    {em:"🟢",t:"Google Cloud Storage",d:"storage.googleapis.com",s:"high",q:`site:storage.googleapis.com "${P}"`},
+    {em:"🌊",t:"DigitalOcean Spaces",d:"digitaloceanspaces.com",s:"high",q:`site:digitaloceanspaces.com "${P}"`},
+    {em:"🔥",t:"Firebase databases",d:"firebaseio.com open DBs",s:"crit",q:`site:firebaseio.com "${P}"`},
+    {em:"📋",t:"Trello boards",d:"Public boards leaking data",s:"med",q:`site:trello.com "${P}" (password | api | secret | credentials)`},
+    {em:"📄",t:"Public Google Docs",d:"docs/drive shared files",s:"med",q:`(site:docs.google.com | site:drive.google.com) "${P}"`},
+    {em:"📤",t:"S3 listing buckets",d:"ListBucketResult XML",s:"high",q:`site:s3.amazonaws.com intitle:"ListBucketResult" "${P}"`},
+  ]},
 
-            "Network Devices": {
-                icon: "fa-network-wired",
-                desc: "Network equipment and IoT device exposure",
-                dorks: [
-                    { icon: "fa-router", title: "Cisco Devices", desc: "Cisco equipment", dork: "site:{{target}} (intext:\"Cisco\" intitle:\"login\" | inurl:\"level/15/exec\")" },
-                    { icon: "fa-shield", title: "Fortinet Firewalls", desc: "FortiGate devices", dork: "site:{{target}} (intitle:\"FortiGate\" | inurl:\"remote/login\")" },
-                    { icon: "fa-fire", title: "Palo Alto Networks", desc: "Palo Alto firewalls", dork: "site:{{target}} intitle:\"Palo Alto Networks\"" },
-                    { icon: "fa-shield-halved", title: "SonicWall", desc: "SonicWall firewalls", dork: "site:{{target}} intitle:\"SonicWall\"" },
-                    { icon: "fa-router", title: "Router Configs", desc: "Router interfaces", dork: "site:{{target}} (intitle:\"router\" intext:\"login\" | intext:\"password\")" },
-                    { icon: "fa-industry", title: "SCADA Systems", desc: "Industrial control", dork: "site:{{target}} (intext:\"SCADA\" | intext:\"HMI\" | intext:\"Human Machine Interface\")" },
-                    { icon: "fa-video", title: "IP Cameras", desc: "Network cameras", dork: "site:{{target}} (inurl:view.shtml | inurl:ViewerFrame | inurl:webcam)" },
-                    { icon: "fa-print", title: "Network Printers", desc: "Printer web UIs", dork: "site:{{target}} (intitle:\"printer\" | inurl:hp/device | inurl:printer/main.html)" }
-                ]
-            },
+  "API & Endpoints":{emoji:"🔌",desc:"REST/GraphQL endpoints, docs, and leaked tokens in URLs.",dorks:[
+    {em:"🛣️",t:"REST API paths",d:"/api/ /v1/ /v2/ /rest/",s:"low",q:`site:${P} inurl:(/api/ | /rest/ | /v1/ | /v2/ | /v3/)`},
+    {em:"🔮",t:"GraphQL",d:"graphql / graphiql endpoints",s:"med",q:`site:${P} (inurl:graphql | inurl:graphiql | inurl:altair | inurl:playground)`},
+    {em:"📘",t:"Swagger / OpenAPI",d:"Interactive API docs",s:"med",q:`site:${P} (inurl:swagger | inurl:api-docs | inurl:openapi.json | intitle:"Swagger UI")`},
+    {em:"🔑",t:"Tokens in URLs",d:"Keys leaked as parameters",s:"high",q:`site:${P} inurl:(api_key= | apikey= | access_token= | auth_token= | client_secret=)`},
+    {em:"❤️",t:"Health / status",d:"/health /status /actuator",s:"med",q:`site:${P} inurl:(/health | /status | /actuator | /metrics | /debug)`},
+    {em:"🔑",t:"OAuth endpoints",d:"authorize / token / callback",s:"med",q:`site:${P} inurl:(/oauth | /authorize | /token | /callback | redirect_uri=)`},
+    {em:"🪝",t:"Webhooks",d:"Webhook receivers",s:"low",q:`site:${P} inurl:(webhook | /hooks/ | callback)`},
+    {em:"📄",t:"WSDL / WADL / SOAP",d:"Legacy service descriptors",s:"low",q:`site:${P} (ext:wsdl | ext:wadl | inurl:?wsdl)`},
+  ]},
 
-            "Code Leaks": {
-                icon: "fa-code",
-                desc: "Source code and credential leaks on public platforms",
-                dorks: [
-                    { icon: "fa-github", title: "GitHub Code", desc: "Code leaks on GitHub", dork: "site:github.com \"{{target}}\" (password | api_key | secret | token)" },
-                    { icon: "fa-gitlab", title: "GitLab Code", desc: "GitLab leaks", dork: "site:gitlab.com \"{{target}}\" (password | token | secret)" },
-                    { icon: "fa-stack-overflow", title: "StackOverflow", desc: "Dev Q&A leaks", dork: "site:stackoverflow.com \"{{target}}\" (password | api | key)" },
-                    { icon: "fa-clipboard", title: "Pastebin Creds", desc: "Pastebin dumps", dork: "site:pastebin.com \"{{target}}\" (password | email | credential)" },
-                    { icon: "fa-github-alt", title: "GitHub Gists", desc: "Code snippets", dork: "site:gist.github.com \"{{target}}\"" },
-                    { icon: "fa-js", title: "JSFiddle Leaks", desc: "JSFiddle code", dork: "site:jsfiddle.net \"{{target}}\"" },
-                    { icon: "fa-codepen", title: "CodePen Projects", desc: "CodePen pens", dork: "site:codepen.io \"{{target}}\"" },
-                    { icon: "fa-code", title: "Replit Projects", desc: "Replit repls", dork: "site:repl.it \"{{target}}\"" }
-                ]
-            }
-        };
+  "Injection Parameters":{emoji:"🐛",desc:"Parameters historically prone to SQLi, XSS, SSRF, LFI, IDOR, and RCE.",dorks:[
+    {em:"💉",t:"SQL injection",d:"id / cat / pid numeric params",s:"high",q:`site:${P} inurl:(id= | pid= | cat= | category= | item= | product_id=)`},
+    {em:"💫",t:"Reflected XSS",d:"search / q / message params",s:"med",q:`site:${P} inurl:(q= | s= | search= | query= | keyword= | message= | name=)`},
+    {em:"📂",t:"LFI / path traversal",d:"file / path / include params",s:"high",q:`site:${P} inurl:(file= | path= | dir= | folder= | include= | template= | doc=)`},
+    {em:"↪️",t:"Open redirect",d:"url / next / return params",s:"med",q:`site:${P} inurl:(redirect= | url= | next= | return= | returnUrl= | goto= | dest=)`},
+    {em:"🌐",t:"SSRF",d:"url / proxy / fetch / image params",s:"high",q:`site:${P} inurl:(url= | uri= | proxy= | fetch= | image_url= | dest= | callback=)`},
+    {em:"⌨️",t:"Command injection",d:"cmd / exec / ping params",s:"crit",q:`site:${P} inurl:(cmd= | exec= | command= | ping= | query= | run= | system=)`},
+    {em:"🔑",t:"IDOR candidates",d:"user / account / invoice IDs",s:"high",q:`site:${P} inurl:(user_id= | account= | uid= | invoice= | order_id= | profile=)`},
+    {em:"🧩",t:"SSTI / template",d:"template / view / render params",s:"high",q:`site:${P} inurl:(template= | view= | render= | page= | layout=)`},
+    {em:"📄",t:"XXE / XML intake",d:"xml / xmlrpc / soap endpoints",s:"high",q:`site:${P} inurl:(xmlrpc.php | /soap | wsdl | /xml)`},
+  ]},
 
-        const ENGINE_URLS = {
-            google: (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}`,
-            bing: (q) => `https://www.bing.com/search?q=${encodeURIComponent(q)}`,
-            duckduckgo: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`,
-            yandex: (q) => `https://yandex.com/search/?text=${encodeURIComponent(q)}`,
-            baidu: (q) => `https://www.baidu.com/s?wd=${encodeURIComponent(q)}`,
-            shodan: (q) => `https://www.shodan.io/search?query=${encodeURIComponent(q)}`,
-            censys: (q) => `https://search.censys.io/search?resource=hosts&q=${encodeURIComponent(q)}`,
-            zoomeye: (q) => `https://www.zoomeye.org/searchResult?q=${encodeURIComponent(q)}`,
-            fofa: (q) => `https://en.fofa.info/result?qbase64=${btoa(q)}`,
-            netlas: (q) => `https://app.netlas.io/responses/?q=${encodeURIComponent(q)}`,
-            criminalip: (q) => `https://www.criminalip.io/search?query=${encodeURIComponent(q)}`,
-            github: (q) => `https://github.com/search?q=${encodeURIComponent(q)}&type=code`
-        };
+  "Error & Debug Leaks":{emoji:"⚠️",desc:"Stack traces, debug pages, and error messages that leak internals.",dorks:[
+    {em:"🗄️",t:"SQL errors",d:"Syntax & driver errors",s:"high",q:`site:${P} (intext:"SQL syntax" | intext:"mysql_fetch" | intext:"ORA-" | intext:"Unclosed quotation mark" | intext:"PostgreSQL query failed")`},
+    {em:"🐘",t:"PHP errors",d:"Warnings & fatal errors",s:"med",q:`site:${P} (intext:"Warning: include" | intext:"Fatal error" | intext:"Parse error" | intext:"on line")`},
+    {em:"☕",t:"Java stack traces",d:"Exceptions & servlet errors",s:"med",q:`site:${P} (intext:"java.lang." | intext:"javax.servlet" | intext:"at org.springframework")`},
+    {em:"🐍",t:"Python tracebacks",d:"Django/Flask debug pages",s:"high",q:`site:${P} (intext:"Traceback (most recent call last)" | intext:"Django Version" | intext:"Werkzeug Debugger")`},
+    {em:"🔷",t:"ASP.NET errors",d:"Stack trace & server error",s:"med",q:`site:${P} (intext:"Server Error in" | intext:"Stack Trace:" | intext:".aspx.cs")`},
+    {em:"🔍",t:"Debug / verbose mode",d:"Debug=true & dev tracebacks",s:"high",q:`site:${P} (intext:"DEBUG = True" | intext:"whoops\\\\" | inurl:debug=true)`},
+  ]},
 
-        let currentCategory = "Bug Bounty Programs";
-        let targetDomain = "";
-        let selectedEngine = "google";
+  "CMS & Frameworks":{emoji:"🧩",desc:"Fingerprint CMS, plugins, and framework-specific weak spots.",dorks:[
+    {em:"📝",t:"WordPress core",d:"wp-content / includes / json",s:"low",q:`site:${P} (inurl:wp-content | inurl:wp-includes | inurl:wp-json/wp/v2/users)`},
+    {em:"🔌",t:"WP plugins & themes",d:"Enumerate installed extensions",s:"med",q:`site:${P} (inurl:/wp-content/plugins/ | inurl:/wp-content/themes/)`},
+    {em:"💧",t:"Drupal",d:"node paths & changelog",s:"low",q:`site:${P} (inurl:node | inurl:/CHANGELOG.txt | intext:"Powered by Drupal")`},
+    {em:"🟠",t:"Joomla",d:"administrator & components",s:"low",q:`site:${P} (inurl:option=com_ | inurl:administrator | intext:"Powered by Joomla")`},
+    {em:"🛒",t:"Magento",d:"checkout & admin paths",s:"med",q:`site:${P} (inurl:/checkout/cart | inurl:/admin | intext:"Magento")`},
+    {em:"🛍️",t:"Shopify",d:"myshopify stores",s:"low",q:`site:${P} (inurl:myshopify.com | intext:"Powered by Shopify")`},
+    {em:"💬",t:"Forums (phpBB/vBulletin)",d:"Classic forum software",s:"low",q:`site:${P} (intext:"Powered by phpBB" | intext:"Powered by vBulletin")`},
+  ]},
 
-        function init() {
-            renderNav();
-            renderGrid();
-            updateStats();
+  "Documents & Data":{emoji:"📄",desc:"Leaked documents, spreadsheets, and PII-bearing files.",dorks:[
+    {em:"📑",t:"Office & PDF docs",d:"pdf / doc / xls / ppt exposure",s:"med",q:`site:${P} ext:(pdf | doc | docx | xls | xlsx | ppt | pptx)`},
+    {em:"📊",t:"Spreadsheets & CSV",d:"Data exports & dumps",s:"high",q:`site:${P} ext:(xls | xlsx | csv) (intext:email | intext:password | intext:ssn | intext:"phone")`},
+    {em:"🧾",t:"Confidential markers",d:"“confidential / internal only”",s:"high",q:`site:${P} (intext:"confidential" | intext:"internal use only" | intext:"do not distribute") ext:(pdf | docx | xlsx)`},
+    {em:"💳",t:"Financial documents",d:"Invoices / receipts / payroll",s:"high",q:`site:${P} (intext:"invoice" | intext:"salary" | intext:"payroll" | intext:"purchase order") ext:(pdf | xlsx)`},
+    {em:"🆔",t:"PII spreadsheets",d:"Names + emails + phones",s:"crit",q:`site:${P} ext:(xlsx | csv) intext:"@${P}" (intext:"phone" | intext:"address" | intext:"dob")`},
+  ]},
 
-            document.getElementById('target').addEventListener('input', (e) => {
-                targetDomain = e.target.value.trim();
-                document.getElementById('target-display').textContent = targetDomain || 'Not Set';
-                updatePreviews();
-            });
+  "Code & Secret Leaks":{emoji:"💻",desc:"Source-code and credential leaks on public dev platforms.",dorks:[
+    {em:"🐙",t:"GitHub secrets",d:"Creds referencing target",s:"crit",q:`"${P}" (password | api_key | apikey | secret | token | "BEGIN PRIVATE KEY")`,eng:"github"},
+    {em:"🧩",t:"GitHub config files",d:".env / config in repos",s:"high",q:`"${P}" (filename:.env | filename:config.json | filename:credentials)`,eng:"github"},
+    {em:"🔍",t:"grep.app code search",d:"Live code across public repos",s:"high",q:`${P}`,eng:"grep"},
+    {em:"🦊",t:"GitLab snippets",d:"Public GitLab code",s:"high",q:`site:gitlab.com "${P}" (password | token | secret)`},
+    {em:"📋",t:"Pastebin dumps",d:"Leaked creds on paste sites",s:"high",q:`(site:pastebin.com | site:ghostbin.com | site:rentry.co) "${P}" (password | email | dump)`},
+    {em:"📝",t:"GitHub Gists",d:"Snippets mentioning target",s:"med",q:`site:gist.github.com "${P}"`},
+    {em:"🕶️",t:"StackOverflow leaks",d:"Configs pasted in questions",s:"low",q:`site:stackoverflow.com "${P}" (api | key | token | password)`},
+  ]},
+};
 
-            document.getElementById('engine-select').addEventListener('change', (e) => {
-                selectedEngine = e.target.value;
-                const text = e.target.options[e.target.selectedIndex].text;
-                document.getElementById('current-engine').textContent = text;
-            });
+/* ============ STATE ============ */
+let currentCat = Object.keys(DB)[0];
+let domain = "";
+let filter = "";
+const FAV_KEY="dorkcandy_favs", THEME_KEY="dorkcandy_theme";
+let favs = JSON.parse(localStorage.getItem(FAV_KEY) || "[]");
 
-            document.getElementById('delay-slider').addEventListener('input', (e) => {
-                document.getElementById('delay-val').innerText = e.target.value + 's';
-            });
-        }
+const THEMES={
+  candy:{pink:"#ff9ec4",mint:"#9be7c4",lav:"#c4b5fd",sky:"#a5d8ff",yellow:"#ffe066",peach:"#ffc09f",bg:"#fef3e2"},
+  bubblegum:{pink:"#ff8fab",mint:"#caffbf",lav:"#bdb2ff",sky:"#a0c4ff",yellow:"#fdffb6",peach:"#ffd6a5",bg:"#fff0f6"},
+  matcha:{pink:"#f4a8c0",mint:"#b7e4c7",lav:"#cdb4db",sky:"#b8e0d2",yellow:"#f9e784",peach:"#ffcb91",bg:"#f1f7ed"},
+  blueberry:{pink:"#cdb4db",mint:"#a2d2ff",lav:"#bde0fe",sky:"#90dbf4",yellow:"#ffd670",peach:"#f7a8b8",bg:"#eef2ff"},
+};
 
-        function renderNav() {
-            const container = document.getElementById('nav-container');
-            container.innerHTML = '<div class="section-label">Categories</div>';
+/* ============ HELPERS ============ */
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+function build(q){return domain ? q.split(P).join(domain) : q}
+function highlight(q){
+  let h = esc(q);
+  if(domain){h=h.split(esc(domain)).join(`<span class="hl">${esc(domain)}</span>`);}
+  else{h=h.split(esc(P)).join(`<span class="hl">${esc(P)}</span>`);}
+  return h;
+}
+function favId(cat,t){return cat+"::"+t}
+function isFav(cat,t){return favs.some(f=>f.id===favId(cat,t))}
 
-            Object.keys(DB).forEach(cat => {
-                const data = DB[cat];
-                const btn = document.createElement('button');
-                btn.className = `nav-btn ${cat === currentCategory ? 'active' : ''}`;
-                btn.onclick = () => switchCategory(cat);
-                btn.innerHTML = `
-                    <div class="nav-btn-content">
-                        <i class="fas ${data.icon}"></i>
-                        <span>${cat}</span>
-                    </div>
-                    <span class="badge">${data.dorks.length}</span>
-                `;
-                container.appendChild(btn);
-            });
-        }
+/* allDorks incl. favorites virtual category */
+function catData(cat){
+  if(cat==="⭐ Favorites"){
+    return {emoji:"⭐",desc:"Your starred and custom dorks. Saved locally in your browser.",
+      dorks:favs.map(f=>({em:f.em||"⭐",t:f.t,d:f.d||"Saved dork",s:f.s||"info",q:f.q,eng:f.eng,_fav:true,_srcCat:f.srcCat}))};
+  }
+  return DB[cat];
+}
 
-        function renderGrid() {
-            const grid = document.getElementById('dork-grid');
-            const title = document.getElementById('current-section-title');
-            const desc = document.getElementById('section-desc');
+/* ============ RENDER ============ */
+function renderNav(){
+  const nav=document.getElementById("nav");
+  let html=`<div class="nav-label">Categories</div>`;
+  html+=navBtn("⭐ Favorites","⭐",favs.length);
+  Object.keys(DB).forEach(c=>html+=navBtn(c,DB[c].emoji,DB[c].dorks.length));
+  nav.innerHTML=html;
+}
+function navBtn(cat,emoji,n){
+  return `<button class="nav-btn ${cat===currentCat?'active':''}" onclick="switchCat('${cat.replace(/'/g,"\\'")}')">
+    <span class="left"><span class="emoji">${emoji}</span><span class="name">${cat}</span></span>
+    <span class="count">${n}</span></button>`;
+}
 
-            const catData = DB[currentCategory];
-            title.innerHTML = `<i class="fas ${catData.icon}"></i> ${currentCategory}`;
-            desc.innerText = catData.desc;
-            document.getElementById('current-cat').textContent = currentCategory;
+function renderEngines(){
+  const box=document.getElementById("engines");
+  let html=`<span class="lbl">Engines</span>`;
+  for(const [k,e] of Object.entries(ENGINES)){
+    html+=`<button class="chip ${selectedEngines.has(k)?'on':''}" onclick="toggleEngine('${k}')">${e.name}<span class="grp">${e.grp}</span></button>`;
+  }
+  box.innerHTML=html;
+}
 
-            grid.innerHTML = '';
+function renderGrid(){
+  const data=catData(currentCat);
+  document.getElementById("sec-title").innerHTML=`${data.emoji} ${currentCat}`;
+  document.getElementById("sec-desc").textContent=data.desc;
+  const grid=document.getElementById("grid");
+  let list=data.dorks.map((d,i)=>({...d,_i:i}));
+  if(filter){
+    const f=filter.toLowerCase();
+    list=list.filter(d=>(d.t+" "+d.d+" "+d.q).toLowerCase().includes(f));
+  }
+  document.getElementById("stat-cat").textContent=list.length;
+  if(!list.length){
+    grid.innerHTML=`<div class="empty" style="grid-column:1/-1"><span class="big">🍭</span>No dorks here${filter?` for “${esc(filter)}”`:''}.</div>`;
+    return;
+  }
+  grid.innerHTML=list.map(d=>{
+    const fav=isFav(d._srcCat||currentCat,d.t);
+    const engBadge=d.eng?`<span class="sev info" title="Best engine">${ENGINES[d.eng]?.name||d.eng}</span>`:"";
+    return `<div class="card">
+      <div class="card-top">
+        <div class="card-title"><span class="em">${d.em}</span><span>${esc(d.t)}</span></div>
+        <span class="sev ${d.s}">${d.s}</span>
+      </div>
+      <div class="card-desc">${esc(d.d)} ${engBadge}</div>
+      <div class="dork-box">${highlight(build(d.q))}</div>
+      <div class="card-acts">
+        <button class="btn btn-pink" onclick='runDork(${JSON.stringify(d.q)},${JSON.stringify(d.eng||null)},${JSON.stringify(d.t)})'>▶ Run</button>
+        <button class="btn btn-mint" onclick='copyDork(${JSON.stringify(d.q)},${JSON.stringify(d.t)})'>⧉</button>
+        <button class="fav ${fav?'on':''}" onclick='toggleFav(${JSON.stringify(currentCat)},${JSON.stringify(d)})'>${fav?"⭐":"☆"}</button>
+      </div></div>`;
+  }).join("");
+}
 
-            catData.dorks.forEach((item, index) => {
-                const card = document.createElement('div');
-                card.className = 'dork-card';
-                card.innerHTML = `
-                    <div class="dork-header">
-                        <div class="dork-title">
-                            <i class="fas ${item.icon}"></i>
-                            <span>${item.title}</span>
-                        </div>
-                        <span class="dork-number">#${index + 1}</span>
-                    </div>
-                    <div class="dork-desc">${item.desc}</div>
-                    <div class="dork-preview" id="preview-${index}">
-                        ${constructDork(item.dork)}
-                    </div>
-                    <div class="card-actions">
-                        <button class="btn btn-primary" onclick="runOne(${index})">
-                            <i class="fas fa-play"></i> Run
-                        </button>
-                        <button class="btn btn-secondary" onclick="copyOne(${index})">
-                            <i class="fas fa-copy"></i>
-                        </button>
-                    </div>
-                `;
-                grid.appendChild(card);
-            });
-        }
+function renderStats(){
+  const total=Object.values(DB).reduce((a,c)=>a+c.dorks.length,0);
+  document.getElementById("stat-total").textContent=total;
+  document.getElementById("stat-fav").textContent=favs.length;
+}
 
-        function switchCategory(cat) {
-            currentCategory = cat;
-            renderNav();
-            renderGrid();
-        }
+function renderThemes(){
+  const box=document.getElementById("themes");
+  box.innerHTML=Object.entries(THEMES).map(([k,t])=>
+    `<div class="theme-dot" title="${k}" onclick="setTheme('${k}')" style="background:linear-gradient(135deg,${t.pink} 0 50%,${t.mint} 50% 100%)"></div>`
+  ).join("");
+}
 
-        function constructDork(template) {
-            if (!targetDomain) return template;
-            return template.replace(/{{target}}/g, targetDomain);
-        }
+/* ============ ACTIONS ============ */
+function switchCat(c){currentCat=c;renderNav();renderGrid();window.scrollTo&&document.querySelector('.content').scrollTo(0,0);}
+function toggleEngine(k){
+  if(selectedEngines.has(k)){if(selectedEngines.size>1)selectedEngines.delete(k);}
+  else selectedEngines.add(k);
+  renderEngines();
+}
+function enginesFor(preferred){
+  // if a dork has a preferred engine and it isn't selected, use it; else use all selected
+  if(preferred && !selectedEngines.has(preferred)) return [preferred];
+  return [...selectedEngines];
+}
+function needDomain(){
+  if(!domain){toast("👀 Hold on","Enter a target domain first!");document.getElementById("target").focus();return false;}
+  return true;
+}
+function runDork(q,pref,title){
+  if(q.includes(P)&&!needDomain())return;
+  const query=build(q);
+  const engs=enginesFor(pref);
+  engs.forEach(k=>window.open(ENGINES[k].url(query),"_blank"));
+  toast("🚀 Launched",`${title} → ${engs.map(k=>ENGINES[k].name).join(", ")}`);
+}
+function copyDork(q,title){
+  navigator.clipboard.writeText(build(q));
+  toast("📋 Copied",`${title}`);
+}
+function currentList(){
+  const data=catData(currentCat);let list=data.dorks;
+  if(filter){const f=filter.toLowerCase();list=list.filter(d=>(d.t+" "+d.d+" "+d.q).toLowerCase().includes(f));}
+  return list;
+}
+function runAll(){
+  const list=currentList();
+  if(list.some(d=>d.q.includes(P))&&!needDomain())return;
+  const delay=parseFloat(document.getElementById("delay").value)*1000;
+  const perDork=[...selectedEngines].length;
+  const tabs=list.length*perDork;
+  if(!confirm(`Launch ${list.length} dorks × ${perDork} engine(s) = ${tabs} tabs?\nDomain: ${domain||"(none)"}\nDelay: ${delay/1000}s\n\nTip: allow pop-ups for this page.`))return;
+  toast("🎆 Running",`${tabs} tabs, ${delay/1000}s apart`);
+  list.forEach((d,i)=>setTimeout(()=>{
+    const query=build(d.q);
+    enginesFor(d.eng).forEach(k=>window.open(ENGINES[k].url(query),"_blank"));
+  },i*delay));
+}
+function copyAll(){
+  const list=currentList();
+  const text=list.map(d=>build(d.q)).join("\n");
+  navigator.clipboard.writeText(text);
+  toast("📋 Copied all",`${list.length} dorks to clipboard`);
+}
+function exportAll(){
+  const list=currentList();
+  const header=`# DORK CANDY export\n# Category: ${currentCat}\n# Target: ${domain||"(none)"}\n# ${new Date().toISOString()}\n\n`;
+  const text=header+list.map(d=>`## ${d.t} [${d.s}]\n${build(d.q)}\n`).join("\n");
+  const blob=new Blob([text],{type:"text/plain"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`dorks_${currentCat.replace(/[^a-z0-9]+/gi,"_").toLowerCase()}.txt`;
+  a.click();URL.revokeObjectURL(a.href);
+  toast("⬇️ Exported",a.download);
+}
+function toggleFav(cat,d){
+  const srcCat = d._srcCat || cat;
+  const id=favId(srcCat,d.t);
+  const idx=favs.findIndex(f=>f.id===id);
+  if(idx>=0){favs.splice(idx,1);toast("☆ Removed",d.t);}
+  else{favs.push({id,em:d.em,t:d.t,d:d.d,s:d.s,q:d.q,eng:d.eng,srcCat});toast("⭐ Saved",d.t);}
+  localStorage.setItem(FAV_KEY,JSON.stringify(favs));
+  renderNav();renderStats();renderGrid();
+}
 
-        function updatePreviews() {
-            DB[currentCategory].dorks.forEach((item, index) => {
-                const el = document.getElementById(`preview-${index}`);
-                if (el) el.innerText = constructDork(item.dork);
-            });
-        }
+/* custom builder */
+function openBuilder(){document.getElementById("modal").classList.add("show");document.getElementById("cd-title").focus();}
+function closeBuilder(){document.getElementById("modal").classList.remove("show");}
+function saveCustom(){
+  const t=document.getElementById("cd-title").value.trim();
+  const q=document.getElementById("cd-dork").value.trim();
+  if(!t||!q){toast("👀 Missing","Title and dork required");return;}
+  favs.push({id:favId("Custom",t),em:"✨",t,d:"Custom dork",s:"info",q,srcCat:"Custom"});
+  localStorage.setItem(FAV_KEY,JSON.stringify(favs));
+  document.getElementById("cd-title").value="";document.getElementById("cd-dork").value="";
+  closeBuilder();renderNav();renderStats();
+  currentCat="⭐ Favorites";renderNav();renderGrid();
+  if(q.includes(P)&&!domain){toast("💾 Saved","Set a domain, then Run");}
+  else{runDork(q,null,t);}
+}
 
-        function runOne(index) {
-            if (!validateTarget()) return;
-            const item = DB[currentCategory].dorks[index];
-            const dork = constructDork(item.dork);
-            const url = ENGINE_URLS[selectedEngine](dork);
-            window.open(url, '_blank');
-            showToast('Launched', `${item.title} on ${selectedEngine.toUpperCase()}`);
-        }
+/* theme */
+function setTheme(name){
+  const t=THEMES[name];if(!t)return;
+  const r=document.documentElement.style;
+  r.setProperty("--pink",t.pink);r.setProperty("--mint",t.mint);r.setProperty("--lav",t.lav);
+  r.setProperty("--sky",t.sky);r.setProperty("--yellow",t.yellow);r.setProperty("--peach",t.peach);
+  r.setProperty("--bg",t.bg);
+  localStorage.setItem(THEME_KEY,name);
+}
 
-        function runAll() {
-            if (!validateTarget()) return;
+/* toast */
+let toastTimer;
+function toast(t,m){
+  document.getElementById("toast-t").textContent=t;
+  document.getElementById("toast-m").textContent=m;
+  const el=document.getElementById("toast");
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove("show"),3200);
+}
 
-            const delay = parseFloat(document.getElementById('delay-slider').value) * 1000;
-            const items = DB[currentCategory].dorks;
+/* ============ INIT ============ */
+function init(){
+  setTheme(localStorage.getItem(THEME_KEY)||"candy");
+  renderThemes();renderNav();renderEngines();renderGrid();renderStats();
 
-            const confirmed = window.confirm(
-                `Launch ${items.length} dorks for "${targetDomain}"?\n\n` +
-                `Engine: ${selectedEngine.toUpperCase()}\n` +
-                `Delay: ${delay/1000}s\n\n` +
-                `This opens ${items.length} new tabs.`
-            );
-
-            if (!confirmed) return;
-
-            showToast('Launching', `Running ${items.length} dorks with ${delay/1000}s delay`);
-
-            items.forEach((item, i) => {
-                setTimeout(() => {
-                    const dork = constructDork(item.dork);
-                    const url = ENGINE_URLS[selectedEngine](dork);
-                    window.open(url, '_blank');
-                }, i * delay);
-            });
-        }
-
-        function copyOne(index) {
-            const item = DB[currentCategory].dorks[index];
-            const dork = constructDork(item.dork);
-            navigator.clipboard.writeText(dork);
-            showToast('Copied', `${item.title} copied to clipboard`);
-        }
-
-        function copyAll() {
-            if (!validateTarget()) return;
-            const items = DB[currentCategory].dorks;
-            const text = items.map(i => constructDork(i.dork)).join('\n');
-            navigator.clipboard.writeText(text);
-            showToast('Copied', `All ${items.length} dorks copied to clipboard`);
-        }
-
-        function validateTarget() {
-            if (!targetDomain) {
-                showToast('Error', 'Please enter a target domain first!');
-                document.getElementById('target').focus();
-                return false;
-            }
-            return true;
-        }
-
-        function showToast(title, msg) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toast-title').innerText = title;
-            document.getElementById('toast-msg').innerText = msg;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3500);
-        }
-
-        function updateStats() {
-            const total = Object.values(DB).reduce((acc, cat) => acc + cat.dorks.length, 0);
-            document.getElementById('total-dorks').textContent = total;
-        }
-
-        init();
-    </script>
+  document.getElementById("target").addEventListener("input",e=>{domain=e.target.value.trim();renderGrid();});
+  document.getElementById("search").addEventListener("input",e=>{filter=e.target.value.trim();renderGrid();});
+  document.getElementById("delay").addEventListener("input",e=>{document.getElementById("delay-val").textContent=e.target.value+"s";});
+  document.getElementById("modal").addEventListener("click",e=>{if(e.target.id==="modal")closeBuilder();});
+  document.addEventListener("keydown",e=>{
+    if(e.key==="/"&&document.activeElement.tagName!=="INPUT"&&document.activeElement.tagName!=="TEXTAREA"){e.preventDefault();document.getElementById("search").focus();}
+    if(e.key==="Escape")closeBuilder();
+  });
+}
+init();
+</script>
 </body>
 </html>
